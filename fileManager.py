@@ -1,7 +1,7 @@
 class FileManager:
 
     def __init__(self):
-        self.path: str = "files/text4_enc.txt"
+        self.path: str = "files/text1_enc.txt"
 
     def load_data(self) -> list:
         result: list = []

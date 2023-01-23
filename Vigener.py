@@ -151,6 +151,8 @@ class Vigener:
         for i in ascii_int:
             word = word + chr(((i + lowest_probability_index) % 26) + 65)
 
+        print(chr(26-lowest_probability_index+65))
+
         return word
 
     def repair(self, mess: list):
