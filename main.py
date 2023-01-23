@@ -3,7 +3,7 @@ from Vigener import Vigener
 
 def main():
     viger = Vigener()
-    viger.cipher()
+    viger.start()
 
 
 if __name__ == '__main__':

@@ -1,197 +1,174 @@
-import math
-
 from fileManager import FileManager
 from LetterProb import LetterProb
 
 
 class Vigener:
 
+    """
+    Dešifrujte všetky nižšie uvedené texty zašifrované vigenerovskou šifrou a určte použité heslá.
+    Šifrujú sa len písmená veľkej telegrafnej abecedy (mod 26), všetky ostatné (väčšinou formátovacie) znaky ignorujte.
+    Heslo je náhodne vygenerované, primerane dlhé (od 15 do 25 znakov vrátane).
+    Pôvodné (priame texty) môžu byť v slovenskom aj anglickom jazyku!
+    """
     def __init__(self):
 
         self.file_manager = FileManager()
 
         self.alphabet: list = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O',
                                'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
-        self.prob_en: list = [0.0657, 0.0126, 0.0399, 0.0322, 0.0957, 0.0175, 0.0145, 0.0404,
-                              0.0701, 0.0012, 0.0049, 0.0246, 0.0231, 0.0551, 0.0603, 0.0298, 0.0005, 0.0576, 0.0581,
-                              0.0842, 0.0192, 0.0081, 0.0086, 0.0007, 0.0167, 0.0005]
+        self.probabilities_en: list = [0.0657, 0.0126, 0.0399, 0.0322, 0.0957, 0.0175, 0.0145, 0.0404,
+                                       0.0701, 0.0012, 0.0049, 0.0246, 0.0231, 0.0551, 0.0603, 0.0298, 0.0005, 0.0576, 0.0581,
+                                       0.0842, 0.0192, 0.0081, 0.0086, 0.0007, 0.0167, 0.0005]
 
-        self.prob_sk: list = [0.0995, 0.0118, 0.0266, 0.0436, 0.0698, 0.0113, 0.0017, 0.0175, 0.0711, 0.0157, 0.0406,
-                              0.0262, 0.0354, 0.0646, 0.0812, 0.0179, 0.0000, 0.0428, 0.0463, 0.0432, 0.0384, 0.0314,
-                              0.0000, 0.0004, 0.0170, 0.0175]
+        self.probabilities_sk: list = [0.0995, 0.0118, 0.0266, 0.0436, 0.0698, 0.0113, 0.0017, 0.0175, 0.0711, 0.0157, 0.0406,
+                                       0.0262, 0.0354, 0.0646, 0.0812, 0.0179, 0.0000, 0.0428, 0.0463, 0.0432, 0.0384, 0.0314,
+                                       0.0000, 0.0004, 0.0170, 0.0175]
 
         self.min = 15
         self.max = 25
 
-        self.contents = self.file_manager.load_data()[0]
-        self.original = self.contents
+        self.message = self.file_manager.load_data()[0]
+        self.message_original = self.message
 
-    def cipher(self):
-        """pole = self.file_manager.load_data(self.path)
-        data: str = pole[0]
-        print(data)"""
+    def start(self):
+        self.message = self.message.replace(" ", "")  # Remove White Spaces
+        print("***********************************")
+        print(self.message)
 
-        self.contents = self.contents.replace(" ", "")  # Remove White Spaces
-        print(self.contents)
-
-        diffrences: list = self.FindTreeLetters(self.contents)
+        diffrences: list = self.find_tree_same_letters(self.message)
+        print("***********************************")
         print(diffrences)
 
-        devisors: list = self.FindDevisor(diffrences, self.min, self.max)
+        devisors: list = self.find_divisor(diffrences)
+        print("***********************************")
         print(devisors)
 
-        splited: list = self.SplitMessage(self.contents, self.MostUsedValue(devisors))
+        print(len(diffrences))
+        print(len(devisors))
+
+        key = max(set(devisors), key=devisors.count)  # most frequent value
+        print("***********************************")
+        print("Key Length: " + str(key))
+
+        splited: list = self.split_message(self.message, key)
+        print("***********************************")
         print(splited)
 
         messy: list = []
         for w in splited:
-            messy.append(self.Decipher(w, True, self.GetProbabilities(w)))
+            messy.append(self.decode(w, True, self.count_probabilities(w)))
 
-        self.Repair(messy)
+        self.repair(messy)
 
-    def FindTreeLetters(self, input: str):
+    def find_tree_same_letters(self, message: str) -> list:
         result: list = []
-        for i in range(len(input) - 4):
-
-            """for j, inp in enumerate(input[:len(input)-3], start=i + 1):
-                if j > len(input) - 3:
-                    break
-                if input[i] == input[j] and \
-                        input[i + 1] == input[j + 1] and \
-                        input[i + 2] == input[j + 2]:
-                    result.append(j - 1)"""
+        for i in range(len(message) - 3):
             j: int = i + 1
-            while j < len(input) - 3:
-                if input[i] == input[j] and \
-                        input[i + 1] == input[j + 1] and \
-                        input[i + 2] == input[j + 2]:
+            while j < len(message) - 3:
+                if message[i] == message[j] and \
+                        message[i + 1] == message[j + 1] and \
+                        message[i + 2] == message[j + 2]:
                     result.append(j - i)
                 j += 1
+
         return result
 
-    def FindDevisor(self, diff: list, lower: int, upper: int):
-        devisors: list = []
+    def find_divisor(self, diff: list):
+        result: list = []
         for d in diff:
-            i: int = lower
-            while i <= upper:
+            i: int = self.min
+            while i <= self.max:
                 if d % i == 0:
-                    devisors.append(i)
+                    result.append(i)
                 i += 1
 
-        return devisors
+        return result
 
-    def MostUsedValue(self, devs: list):
-        max_count: int = 0
-        max_freg: int = 0
+    def split_message(self, message: str, key_length: int):
+        temp_list: list = []
 
-        for i in range(len(devs)):
-            count: int = 0
-            for j in range(len(devs)):
-                if devs[i] == devs[j]:
-                    count += 1
+        for i in range(key_length):
+            s = message[i::key_length]
+            temp_list.append(s)
+        return temp_list
 
-            if count > max_count:
-                max_count = count
-                max_freg = devs[i]
-
-        return max_freg
-
-    def SplitMessage(self, msg: str, dev: int):
-        splited: list = []
-        for i in range(dev):
-            s: str = ""
-            j: int = i
-
-            while j < len(msg):
-                s = s + msg[j]
-                j += dev
-            splited.append(s)
-        return splited
-
-    def GetProbabilities(self, substring: str) -> list:
-        source = substring
-        count_all = len(substring)
-        count_unique = len(set(substring))
+    def count_probabilities(self, substr: str) -> list:
+        substr_original = substr
+        count_all = len(substr)
+        count_unique = len(set(substr))
         probabilities: list = []
 
-        for l in self.alphabet:
-            probabilities.append(LetterProb(l, 0))
+        for letter in self.alphabet:
+            probabilities.append(LetterProb(letter, 0))
 
         for i in range(count_unique - 1):
-            countF: int = substring.count(source[0])
+            count_f: int = substr.count(substr_original[0])
 
             for j in probabilities:
-                if j.letter == source[0]:
-                    j.probability = float(countF / count_all)
+                if j.letter == substr_original[0]:
+                    j.probability = float(count_f / count_all)
 
-            source = source.replace(source[0], "")
+            substr_original = substr_original.replace(substr_original[0], "")
 
         return probabilities
 
-    def Decipher(self, word, slovak, letterProbs):
-        decipher: str = ""
+    def decode(self, substr: list, slovak: bool, letter_probs):
         ascii_int: list = []
 
         # to ASCII
-        for w in word:
-            ascii_int.append(ord(w) - 65)
+        for letter in substr:
+            ascii_int.append(ord(letter) - 65)
 
-        # asi môže ísť do piče
         if slovak:
-            decipher = self.GetSlovakString(letterProbs, ascii_int)
+            decipher = self.get_original_message(letter_probs, ascii_int, self.probabilities_sk)
+        else:
+            decipher = self.get_original_message(letter_probs, ascii_int, self.probabilities_en)
 
         return decipher
 
-    def GetSlovakString(self, letterProbs: list, ascii_int):
-        prob: int = 999_999
-        bestShift: int = 0
+    def get_original_message(self, letter_probs: list, ascii_int: list, language_prob: list):
+        probability: int = 1_000_000_000
+        lowest_probability_index: int = 0
 
-        for i in range(len(self.prob_sk)):
-            helper: int = 0
-            shift: int = 0
-            for item in letterProbs:
+        for i in range(len(language_prob)):
+            temp_probability: int = 0
+            index: int = 0
+            for letter in letter_probs:
 
-                if shift + i >= len(self.prob_sk):
-                    helper += abs(self.prob_sk[(shift + i) - len(self.prob_sk)] -
-                                  item.probability)
+                if index + i >= len(language_prob):
+                    temp_probability += abs(language_prob[(index + i) - len(language_prob)] -
+                                            letter.probability)
                 else:
-                    helper += abs(self.prob_sk[shift + i] - item.probability)
-                shift += 1
-            if helper < prob:
-                prob = helper
-                bestShift = i
+                    temp_probability += abs(language_prob[index + i] - letter.probability)
+                index += 1
 
-        pom: list = []
-
-        for i in ascii_int:
-            pom.append(((i + bestShift) % 26) + 65)
+            if temp_probability < probability:
+                probability = temp_probability
+                lowest_probability_index = i
 
         word: str = ""
-        for i in pom:
-            word = word + chr(i)
+
+        for i in ascii_int:
+            word = word + chr(((i + lowest_probability_index) % 26) + 65)
 
         return word
 
-    def Repair(self, mess: list):
-        decodeWord: str = ""
+    def repair(self, mess: list):
+        decode_message: str = ""
 
         for i in range(len(mess[0])):
             for word in mess:
                 if i >= len(word):
                     continue
-                decodeWord = decodeWord + word[i]
+                decode_message = decode_message + word[i]
 
-        print("---------------------------")
-        print("Message is: ")
-
-        WhiteSpacesIndexes: list = []
-
-        for i, letter in enumerate(self.original):
+        # add whitespace
+        for i, letter in enumerate(self.message_original):
             if letter == " ":
-                WhiteSpacesIndexes.append(i)
+                decode_message = decode_message[:i] + " " + decode_message[i:]
 
-        for i in range(len(WhiteSpacesIndexes)):
-            decodeWord = decodeWord[:WhiteSpacesIndexes[i]] + " " + decodeWord[WhiteSpacesIndexes[i]:]
+        print("***********************************")
+        print("Decoded Message: ")
+        print(decode_message)
 
-        print(decodeWord)
-        return decodeWord
+        return decode_message
